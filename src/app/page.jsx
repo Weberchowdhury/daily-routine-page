@@ -1,119 +1,195 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "my-learning-journal";
+const STORAGE_KEY = "hifz-daily-tracker";
+
+function getToday() {
+  const date = new Date();
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 const emptyForm = {
-  topic: "",
-  category: "Web Development",
-  learned: "",
-  confused: "",
-  remember: "",
-  next: "",
+  date: getToday(),
+
+  sabak: "",
+  satasabak: "",
+  amukhta: "",
+  dailyTilawah: "",
+  extraPrayer: "",
+  nazera: "",
+
+  sabakDone: false,
+  satasabakDone: false,
+  amukhtaDone: false,
+  dailyTilawahDone: false,
+  extraPrayerDone: false,
+  nazeraDone: false,
+
+  notes: "",
 };
 
-const categories = [
-  "Web Development",
-  "Next.js",
-  "React",
-  "JavaScript",
-  "English",
-  "Philosophy",
-  "Other",
+const tasks = [
+  {
+    key: "sabak",
+    doneKey: "sabakDone",
+    title: "New Lesson",
+    subtitle: "Sabak",
+    icon: "📖",
+    placeholder: "e.g. Surah Al-Baqarah, pages 5–6",
+  },
+  {
+    key: "satasabak",
+    doneKey: "satasabakDone",
+    title: "Previous Revision",
+    subtitle: "Satasabak",
+    icon: "🔄",
+    placeholder: "e.g. Previous pages from the current Juz",
+  },
+  {
+    key: "amukhta",
+    doneKey: "amukhtaDone",
+    title: "Completed Hifz Revision",
+    subtitle: "Amukhta",
+    icon: "🧠",
+    placeholder: "e.g. Juz 1, pages 1–5",
+  },
+  {
+    key: "dailyTilawah",
+    doneKey: "dailyTilawahDone",
+    title: "Daily Tilawah",
+    subtitle: "Daily Recitation",
+    icon: "📿",
+    placeholder: "e.g. 10 pages",
+  },
+  {
+    key: "extraPrayer",
+    doneKey: "extraPrayerDone",
+    title: "Prayer Recitation",
+    subtitle: "Tilawah in Extra Prayer",
+    icon: "🕌",
+    placeholder: "e.g. Surah Al-Mulk",
+  },
+  {
+    key: "nazera",
+    doneKey: "nazeraDone",
+    title: "Nazera Reading",
+    subtitle: "Reading from the Mushaf",
+    icon: "👀",
+    placeholder: "e.g. 5 pages",
+  },
+];
+
+const filters = [
+  "All",
+  "New Lesson",
+  "Previous Revision",
+  "Completed Hifz Revision",
+  "Daily Tilawah",
+  "Prayer Recitation",
+  "Nazera Reading",
 ];
 
 export default function Home() {
   const [entries, setEntries] = useState([]);
   const [form, setForm] = useState(emptyForm);
+
   const [editingId, setEditingId] = useState(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
   const [showForm, setShowForm] = useState(false);
 
-  // Load entries from localStorage
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("All");
+
+  // Load saved data
   useEffect(() => {
     const savedEntries = localStorage.getItem(STORAGE_KEY);
 
     if (savedEntries) {
-      setEntries(JSON.parse(savedEntries));
+      try {
+        const parsed = JSON.parse(savedEntries);
+
+        if (Array.isArray(parsed)) {
+          setEntries(parsed);
+        }
+      } catch (error) {
+        console.error("Could not load Hifz entries:", error);
+      }
     }
   }, []);
 
-  // Save entries to localStorage
+  // Save data
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   }, [entries]);
 
-  // Handle input changes
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
+    setForm((previous) => ({
+      ...previous,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
-  // Add or update entry
   function handleSubmit(event) {
     event.preventDefault();
 
-    if (!form.topic.trim() || !form.learned.trim()) {
-      alert("Please enter a topic and what you learned.");
+    if (!form.date) {
+      alert("Please select a date.");
       return;
     }
 
     if (editingId) {
-      setEntries((prev) =>
-        prev.map((entry) =>
+      setEntries((previous) =>
+        previous.map((entry) =>
           entry.id === editingId
             ? {
-                ...entry,
                 ...form,
+                id: editingId,
+                updatedAt: new Date().toISOString(),
               }
             : entry
         )
       );
-
-      setEditingId(null);
     } else {
       const newEntry = {
-        id: Date.now(),
-        date: new Date().toISOString(),
         ...form,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
       };
 
-      setEntries((prev) => [newEntry, ...prev]);
+      setEntries((previous) => [newEntry, ...previous]);
     }
 
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      date: getToday(),
+    });
+
+    setEditingId(null);
     setShowForm(false);
   }
 
-  // Delete entry
   function handleDelete(id) {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this entry?"
+      "Are you sure you want to delete this daily record?"
     );
 
     if (!confirmed) return;
 
-    setEntries((prev) =>
-      prev.filter((entry) => entry.id !== id)
+    setEntries((previous) =>
+      previous.filter((entry) => entry.id !== id)
     );
   }
 
-  // Edit entry
   function handleEdit(entry) {
     setForm({
-      topic: entry.topic,
-      category: entry.category,
-      learned: entry.learned,
-      confused: entry.confused,
-      remember: entry.remember,
-      next: entry.next,
+      ...emptyForm,
+      ...entry,
     });
 
     setEditingId(entry.id);
@@ -125,598 +201,616 @@ export default function Home() {
     });
   }
 
-  // Cancel editing
   function handleCancel() {
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      date: getToday(),
+    });
+
     setEditingId(null);
     setShowForm(false);
   }
 
-  // Search and filter
+  function calculateProgress(entry) {
+    const completedTasks = tasks.filter(
+      (task) => entry[task.doneKey]
+    ).length;
+
+    return Math.round((completedTasks / tasks.length) * 100);
+  }
+
   const filteredEntries = useMemo(() => {
+    const searchText = search.trim().toLowerCase();
+
     return entries.filter((entry) => {
-      const matchesCategory =
-        filter === "All" || entry.category === filter;
-
-      const searchText = search.toLowerCase();
-
       const matchesSearch =
-        entry.topic.toLowerCase().includes(searchText) ||
-        entry.learned.toLowerCase().includes(searchText) ||
-        entry.category.toLowerCase().includes(searchText);
+        !searchText ||
+        (entry.sabak || "").toLowerCase().includes(searchText) ||
+        (entry.satasabak || "").toLowerCase().includes(searchText) ||
+        (entry.amukhta || "").toLowerCase().includes(searchText) ||
+        (entry.dailyTilawah || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        (entry.extraPrayer || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        (entry.nazera || "").toLowerCase().includes(searchText) ||
+        (entry.notes || "").toLowerCase().includes(searchText);
 
-      return matchesCategory && matchesSearch;
+      let matchesFilter = true;
+
+      if (filter !== "All") {
+        const selectedTask = tasks.find(
+          (task) => task.title === filter
+        );
+
+        matchesFilter =
+          selectedTask && entry[selectedTask.doneKey];
+      }
+
+      return matchesSearch && matchesFilter;
     });
   }, [entries, search, filter]);
 
+  const totalRecords = entries.length;
+
+  const todayRecords = entries.filter(
+    (entry) => entry.date === getToday()
+  ).length;
+
+  const averageProgress =
+    entries.length === 0
+      ? 0
+      : Math.round(
+          entries.reduce(
+            (total, entry) => total + calculateProgress(entry),
+            0
+          ) / entries.length
+        );
+
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen overflow-hidden bg-[#120d11] text-[#f8e9ef]">
+      {/* Background Decoration */}
+      <div className="pointer-events-none fixed inset-0 -z-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-rose-900/20 blur-3xl" />
 
-      {/* ================= HEADER ================= */}
+        <div className="absolute -right-32 top-1/4 h-96 w-96 rounded-full bg-fuchsia-900/15 blur-3xl" />
 
-      <header className="border-b border-zinc-800">
-        <div className="mx-auto max-w-6xl px-5 py-6">
+        <div className="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-rose-950/20 blur-3xl" />
 
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(190,80,120,0.08),transparent_35%)]" />
 
-            <div>
-              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-lime-400">
-                My Learning Journey
-              </p>
-
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Learning Journal
-              </h1>
-
-              <p className="mt-2 max-w-xl text-sm text-zinc-400">
-                Write down what you learn, what confuses you,
-                and what you want to learn next.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setForm(emptyForm);
-                setEditingId(null);
-                setShowForm(true);
-              }}
-              className="rounded-xl bg-lime-400 px-5 py-3 font-bold text-zinc-950 transition hover:bg-lime-300"
-            >
-              + New Entry
-            </button>
-
+        <div className="absolute inset-0 opacity-[0.025]">
+          <div className="grid h-full grid-cols-8 gap-8 p-8 text-5xl text-rose-200">
+            {Array.from({ length: 80 }).map((_, index) => (
+              <span key={index}>۝</span>
+            ))}
           </div>
         </div>
-      </header>
+      </div>
 
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header */}
+        <header className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.25em] text-rose-400">
+              Qur'an Memorization
+            </p>
 
-      {/* ================= MAIN CONTENT ================= */}
+            <h1 className="text-4xl font-bold tracking-tight text-[#fff1f5] sm:text-5xl">
+              Hifz Journey
+            </h1>
 
-      <div className="mx-auto max-w-6xl px-5 py-8">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-[#bfa9b4] sm:text-base">
+              Keep track of your daily memorization, revision,
+              tilawah, and Qur'an reading.
+            </p>
+          </div>
 
+          <button
+            onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                setForm({
+                  ...emptyForm,
+                  date: getToday(),
+                });
+                setShowForm(true);
+              }
+            }}
+            className="rounded-xl bg-rose-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-950/40 transition hover:bg-rose-400 hover:shadow-rose-900/50"
+          >
+            {showForm ? "Close Form" : "+ New Daily Record"}
+          </button>
+        </header>
 
-        {/* ================= STATISTICS ================= */}
-
+        {/* Statistics */}
         <section className="mb-8 grid gap-4 sm:grid-cols-3">
-
           <StatCard
-            title="Total Entries"
-            value={entries.length}
-            description="Things you have recorded"
+            title="Total Records"
+            value={totalRecords}
+            icon="📚"
           />
 
           <StatCard
-            title="Topics"
-            value={
-              new Set(
-                entries.map((entry) => entry.category)
-              ).size
-            }
-            description="Different learning areas"
+            title="Today's Records"
+            value={todayRecords}
+            icon="🌙"
           />
 
           <StatCard
-            title="Latest Entry"
-            value={
-              entries.length > 0
-                ? formatDate(entries[0].date)
-                : "No entries"
-            }
-            description="Your most recent note"
+            title="Average Progress"
+            value={`${averageProgress}%`}
+            icon="✨"
           />
-
         </section>
 
-
-        {/* ================= FORM ================= */}
-
+        {/* Form */}
         {showForm && (
-          <section className="mb-10 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 sm:p-7">
+          <section className="mb-10 rounded-3xl border border-[#4a303c] bg-[#21151c]/90 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+            <div className="mb-7">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
+                {editingId ? "Edit Record" : "Daily Record"}
+              </p>
 
-            <div className="mb-6 flex items-center justify-between">
+              <h2 className="mt-2 text-2xl font-bold text-[#fff1f5]">
+                {editingId
+                  ? "Update Your Hifz Day"
+                  : "Record Your Hifz Day"}
+              </h2>
 
-              <div>
-                <p className="text-sm font-medium text-lime-400">
-                  {editingId ? "EDIT ENTRY" : "NEW ENTRY"}
-                </p>
-
-                <h2 className="mt-1 text-2xl font-bold">
-                  {editingId
-                    ? "Update your learning"
-                    : "What did you learn today?"}
-                </h2>
-              </div>
-
-              <button
-                onClick={handleCancel}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              >
-                Cancel
-              </button>
-
+              <p className="mt-2 text-sm text-[#bfa9b4]">
+                Record what you studied and mark each task as
+                completed.
+              </p>
             </div>
 
+            <form onSubmit={handleSubmit}>
+              {/* Date */}
+              <div className="mb-7">
+                <label
+                  htmlFor="date"
+                  className="mb-2 block text-sm font-semibold text-[#ead5dd]"
+                >
+                  Date
+                </label>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-
-
-              {/* Topic + Category */}
-
-              <div className="grid gap-5 md:grid-cols-2">
-
-                <Input
-                  label="Topic"
-                  name="topic"
-                  value={form.topic}
+                <input
+                  id="date"
+                  name="date"
+                  type="date"
+                  value={form.date}
                   onChange={handleChange}
-                  placeholder="e.g. Next.js Server Components"
+                  className="w-full rounded-xl border border-[#4a303c] bg-[#160f13] px-4 py-3 text-sm text-[#f8e9ef] outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20 sm:max-w-xs"
                 />
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">
-                    Category
-                  </label>
-
-                  <select
-                    name="category"
-                    value={form.category}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-lime-400"
-                  >
-                    {categories.map((category) => (
-                      <option
-                        key={category}
-                        value={category}
-                      >
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
               </div>
 
+              {/* Tasks */}
+              <div className="grid gap-5 lg:grid-cols-2">
+                {tasks.map((task) => (
+                  <TaskInput
+                    key={task.key}
+                    task={task}
+                    form={form}
+                    handleChange={handleChange}
+                  />
+                ))}
+              </div>
 
-              {/* What I learned */}
+              {/* Notes */}
+              <div className="mt-6">
+                <label
+                  htmlFor="notes"
+                  className="mb-2 block text-sm font-semibold text-[#ead5dd]"
+                >
+                  Daily Notes
+                </label>
 
-              <Textarea
-                label="What did you learn?"
-                name="learned"
-                value={form.learned}
-                onChange={handleChange}
-                placeholder="Write what you learned today..."
-              />
+                <textarea
+                  id="notes"
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Write anything you want to remember about today's Hifz..."
+                  className="w-full resize-none rounded-xl border border-[#4a303c] bg-[#160f13] px-4 py-3 text-sm text-[#f8e9ef] placeholder:text-[#806b75] outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+                />
+              </div>
 
+              {/* Buttons */}
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="submit"
+                  className="rounded-xl bg-rose-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-rose-400"
+                >
+                  {editingId
+                    ? "Update Daily Record"
+                    : "Save Daily Record"}
+                </button>
 
-              {/* What confused me */}
-
-              <Textarea
-                label="What confused you?"
-                name="confused"
-                value={form.confused}
-                onChange={handleChange}
-                placeholder="Write anything you don't understand yet..."
-              />
-
-
-              {/* What to remember */}
-
-              <Textarea
-                label="What do you want to remember?"
-                name="remember"
-                value={form.remember}
-                onChange={handleChange}
-                placeholder="Write the important ideas you don't want to forget..."
-              />
-
-
-              {/* What next */}
-
-              <Textarea
-                label="What should you learn next?"
-                name="next"
-                value={form.next}
-                onChange={handleChange}
-                placeholder="Write your next learning goal..."
-              />
-
-
-              {/* Submit */}
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-lime-400 px-5 py-3.5 font-bold text-zinc-950 transition hover:bg-lime-300 sm:w-auto"
-              >
-                {editingId ? "Update Entry" : "Save Entry"}
-              </button>
-
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="rounded-xl border border-[#4a303c] bg-[#2a1b24] px-6 py-3 text-sm font-semibold text-[#d8c2cc] transition hover:bg-[#35222d] hover:text-white"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
-
           </section>
         )}
 
+        {/* Search & Filter */}
+        <section className="mb-8 rounded-2xl border border-[#3d2933] bg-[#1b1218]/80 p-4 backdrop-blur-xl">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <div className="flex-1">
+              <label
+                htmlFor="search"
+                className="sr-only"
+              >
+                Search records
+              </label>
 
-        {/* ================= SEARCH ================= */}
+              <input
+                id="search"
+                type="text"
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Search your Hifz records..."
+                className="w-full rounded-xl border border-[#46303a] bg-[#160f13] px-4 py-3 text-sm text-[#f8e9ef] placeholder:text-[#806b75] outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+              />
+            </div>
 
-        <section className="mb-6">
+            <div className="lg:w-72">
+              <label
+                htmlFor="filter"
+                className="sr-only"
+              >
+                Filter records
+              </label>
 
-          <div className="flex flex-col gap-3 md:flex-row">
-
-            <input
-              type="search"
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Search your learning..."
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-lime-400"
-            />
-
-            <select
-              value={filter}
-              onChange={(event) =>
-                setFilter(event.target.value)
-              }
-              className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-lime-400"
-            >
-              <option value="All">
-                All Categories
-              </option>
-
-              {categories.map((category) => (
-                <option
-                  key={category}
-                  value={category}
-                >
-                  {category}
-                </option>
-              ))}
-            </select>
-
+              <select
+                id="filter"
+                value={filter}
+                onChange={(event) =>
+                  setFilter(event.target.value)
+                }
+                className="w-full rounded-xl border border-[#46303a] bg-[#160f13] px-4 py-3 text-sm text-[#f8e9ef] outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+              >
+                {filters.map((item) => (
+                  <option
+                    key={item}
+                    value={item}
+                    className="bg-[#1b1218] text-white"
+                  >
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-
         </section>
 
-
-        {/* ================= LEARNING HISTORY ================= */}
-
+        {/* History */}
         <section>
-
-          <div className="mb-5 flex items-end justify-between">
-
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-wider text-lime-400">
-                Your Progress
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
+                Your Records
               </p>
 
-              <h2 className="mt-1 text-2xl font-bold">
-                Learning History
+              <h2 className="mt-1 text-2xl font-bold text-[#fff1f5]">
+                Hifz History
               </h2>
             </div>
 
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-[#8f7a84]">
               {filteredEntries.length}{" "}
               {filteredEntries.length === 1
-                ? "entry"
-                : "entries"}
+                ? "record"
+                : "records"}{" "}
+              found
             </p>
-
           </div>
 
-
-          {/* Empty state */}
-
           {filteredEntries.length === 0 ? (
-
             <EmptyState
-              hasEntries={entries.length > 0}
-              onNewEntry={() => setShowForm(true)}
+              hasRecords={entries.length > 0}
+              onCreate={() => {
+                setForm({
+                  ...emptyForm,
+                  date: getToday(),
+                });
+                setShowForm(true);
+              }}
             />
-
           ) : (
-
             <div className="space-y-5">
-
               {filteredEntries.map((entry) => (
-
-                <article
+                <HifzEntry
                   key={entry.id}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 transition hover:border-zinc-700 sm:p-6"
-                >
-
-                  {/* Entry header */}
-
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-                    <div>
-
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-
-                        <span className="rounded-full bg-lime-400/10 px-3 py-1 text-xs font-semibold text-lime-400">
-                          {entry.category}
-                        </span>
-
-                        <span className="text-xs text-zinc-500">
-                          {formatDate(entry.date)}
-                        </span>
-
-                      </div>
-
-                      <h3 className="text-xl font-bold">
-                        {entry.topic}
-                      </h3>
-
-                    </div>
-
-
-                    {/* Buttons */}
-
-                    <div className="flex gap-2">
-
-                      <button
-                        onClick={() => handleEdit(entry)}
-                        className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleDelete(entry.id)
-                        }
-                        className="rounded-lg border border-red-900/50 px-3 py-2 text-sm text-red-400 transition hover:bg-red-950/40"
-                      >
-                        Delete
-                      </button>
-
-                    </div>
-
-                  </div>
-
-
-                  {/* Entry information */}
-
-                  <div className="mt-6 grid gap-5 md:grid-cols-2">
-
-                    <InfoBox
-                      title="What I learned"
-                      content={entry.learned}
-                    />
-
-                    <InfoBox
-                      title="What confused me"
-                      content={entry.confused}
-                    />
-
-                    <InfoBox
-                      title="What I want to remember"
-                      content={entry.remember}
-                    />
-
-                    <InfoBox
-                      title="What I should learn next"
-                      content={entry.next}
-                    />
-
-                  </div>
-
-                </article>
-
+                  entry={entry}
+                  progress={calculateProgress(entry)}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
               ))}
-
             </div>
-
           )}
-
         </section>
 
+        {/* Footer */}
+        <footer className="mt-16 border-t border-[#34232c] pt-6 text-center">
+          <p className="text-xs text-[#75636c]">
+            Hifz Journey • Stay consistent, stay connected
+            with the Qur'an.
+          </p>
+        </footer>
       </div>
-
-
-      {/* ================= FOOTER ================= */}
-
-      <footer className="border-t border-zinc-800 py-8 text-center text-sm text-zinc-500">
-        My Learning Journal — Keep learning. Keep growing.
-      </footer>
-
     </main>
   );
 }
 
-
-/* =====================================================
+/* ================================
    STAT CARD
-===================================================== */
+================================ */
 
-function StatCard({
-  title,
-  value,
-  description,
-}) {
+function StatCard({ title, value, icon }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-2xl border border-[#3f2934] bg-[#1d131a]/90 p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#927c86]">
+            {title}
+          </p>
 
-      <p className="text-sm text-zinc-500">
-        {title}
-      </p>
+          <p className="mt-2 text-3xl font-bold text-[#fff1f5]">
+            {value}
+          </p>
+        </div>
 
-      <p className="mt-2 text-2xl font-bold text-white">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs text-zinc-600">
-        {description}
-      </p>
-
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-2xl ring-1 ring-rose-400/10">
+          {icon}
+        </div>
+      </div>
     </div>
   );
 }
 
+/* ================================
+   TASK INPUT
+================================ */
 
-/* =====================================================
-   INPUT
-===================================================== */
-
-function Input({
-  label,
-  name,
-  value,
-  onChange,
-  placeholder,
-}) {
+function TaskInput({ task, form, handleChange }) {
   return (
-    <div>
+    <div className="rounded-2xl border border-[#42303a] bg-[#1a1117] p-5 transition hover:border-[#61404d]">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-xl ring-1 ring-rose-400/10">
+            {task.icon}
+          </div>
 
-      <label className="mb-2 block text-sm font-medium text-zinc-300">
-        {label}
-      </label>
+          <div>
+            <h3 className="font-bold text-[#f8e9ef]">
+              {task.title}
+            </h3>
 
-      <input
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-lime-400"
-      />
+            <p className="mt-0.5 text-xs text-[#927c86]">
+              {task.subtitle}
+            </p>
+          </div>
+        </div>
 
-    </div>
-  );
-}
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            name={task.doneKey}
+            checked={form[task.doneKey]}
+            onChange={handleChange}
+            className="h-5 w-5 cursor-pointer accent-rose-500"
+          />
 
-
-/* =====================================================
-   TEXTAREA
-===================================================== */
-
-function Textarea({
-  label,
-  name,
-  value,
-  onChange,
-  placeholder,
-}) {
-  return (
-    <div>
-
-      <label className="mb-2 block text-sm font-medium text-zinc-300">
-        {label}
-      </label>
-
-      <textarea
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        rows={4}
-        className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-lime-400"
-      />
-
-    </div>
-  );
-}
-
-
-/* =====================================================
-   INFORMATION BOX
-===================================================== */
-
-function InfoBox({
-  title,
-  content,
-}) {
-  if (!content?.trim()) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-xl bg-zinc-950 p-4">
-
-      <h4 className="mb-2 text-sm font-semibold text-lime-400">
-        {title}
-      </h4>
-
-      <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-400">
-        {content}
-      </p>
-
-    </div>
-  );
-}
-
-
-/* =====================================================
-   EMPTY STATE
-===================================================== */
-
-function EmptyState({
-  hasEntries,
-  onNewEntry,
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/50 px-5 py-16 text-center">
-
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800 text-2xl">
-        📚
+          <span className="hidden text-xs font-semibold text-[#9d8992] sm:block">
+            Done
+          </span>
+        </label>
       </div>
 
-      <h3 className="text-lg font-bold">
-        {hasEntries
-          ? "No entries found"
-          : "Your learning journal is empty"}
-      </h3>
-
-      <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500">
-        {hasEntries
-          ? "Try another search term or category."
-          : "Start recording what you learn today. Your future self will thank you."}
-      </p>
-
-      {!hasEntries && (
-        <button
-          onClick={onNewEntry}
-          className="mt-5 rounded-xl bg-lime-400 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-lime-300"
-        >
-          Create First Entry
-        </button>
-      )}
-
+      <input
+        type="text"
+        name={task.key}
+        value={form[task.key]}
+        onChange={handleChange}
+        placeholder={task.placeholder}
+        className="w-full rounded-xl border border-[#3d2b34] bg-[#120d11] px-4 py-3 text-sm text-[#f8e9ef] placeholder:text-[#76636c] outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+      />
     </div>
   );
 }
 
+/* ================================
+   HIFZ ENTRY
+================================ */
 
-/* =====================================================
-   DATE FORMATTER
-===================================================== */
+function HifzEntry({
+  entry,
+  progress,
+  onEdit,
+  onDelete,
+}) {
+  return (
+    <article className="overflow-hidden rounded-3xl border border-[#43303a] bg-[#1d141a]/95 shadow-2xl shadow-black/25 backdrop-blur-xl">
+      {/* Entry Header */}
+      <div className="border-b border-[#38262f] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-400">
+              Daily Record
+            </p>
+
+            <h3 className="mt-1 text-xl font-bold text-[#fff1f5]">
+              {formatDate(entry.date)}
+            </h3>
+          </div>
+
+          {/* Progress */}
+          <div className="sm:min-w-52">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-semibold text-[#a8919b]">
+                Daily Progress
+              </span>
+
+              <span className="font-bold text-rose-400">
+                {progress}%
+              </span>
+            </div>
+
+            <div className="h-2 overflow-hidden rounded-full bg-[#392630]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tasks */}
+      <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
+        {tasks.map((task) => {
+          const isDone = entry[task.doneKey];
+          const value = entry[task.key];
+
+          return (
+            <div
+              key={task.key}
+              className={`rounded-2xl border p-4 transition ${
+                isDone
+                  ? "border-rose-500/20 bg-rose-500/5"
+                  : "border-[#382831] bg-[#181015]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">
+                    {task.icon}
+                  </span>
+
+                  <div>
+                    <p className="text-sm font-bold text-[#eee0e6]">
+                      {task.title}
+                    </p>
+
+                    <p className="text-[11px] text-[#806c76]">
+                      {task.subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                {isDone && (
+                  <span className="rounded-full bg-rose-500/15 px-2 py-1 text-[10px] font-bold text-rose-400">
+                    DONE
+                  </span>
+                )}
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-[#ad98a2]">
+                {value || (
+                  <span className="italic text-[#685660]">
+                    No details added
+                  </span>
+                )}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Notes */}
+      {entry.notes && (
+        <div className="mx-5 mb-5 rounded-2xl border border-[#382831] bg-[#181015] p-4 sm:mx-6">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-rose-400">
+            Daily Notes
+          </p>
+
+          <p className="whitespace-pre-wrap text-sm leading-6 text-[#ad98a2]">
+            {entry.notes}
+          </p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-col gap-3 border-t border-[#38262f] bg-[#181015]/60 p-4 sm:flex-row sm:justify-end">
+        <button
+          onClick={() => onEdit(entry)}
+          className="rounded-xl border border-[#4b3440] px-4 py-2.5 text-sm font-semibold text-[#d5c0ca] transition hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-300"
+        >
+          Edit
+        </button>
+
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="rounded-xl border border-red-900/40 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
+        >
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ================================
+   EMPTY STATE
+================================ */
+
+function EmptyState({ hasRecords, onCreate }) {
+  return (
+    <div className="rounded-3xl border border-dashed border-[#4a303c] bg-[#1b1218]/70 px-6 py-16 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/10 text-3xl">
+        {hasRecords ? "🔎" : "📖"}
+      </div>
+
+      <h3 className="mt-5 text-xl font-bold text-[#f6e8ed]">
+        {hasRecords
+          ? "No matching records"
+          : "No Hifz records yet"}
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#8e7983]">
+        {hasRecords
+          ? "Try changing your search or filter."
+          : "Start recording your daily Qur'an memorization journey."}
+      </p>
+
+      {!hasRecords && (
+        <button
+          onClick={onCreate}
+          className="mt-6 rounded-xl bg-rose-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-rose-400"
+        >
+          + Create First Record
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ================================
+   DATE FORMAT
+================================ */
 
 function formatDate(date) {
-  return new Date(date).toLocaleDateString(
+  if (!date) return "Unknown date";
+
+  return new Date(`${date}T00:00:00`).toLocaleDateString(
     "en-US",
     {
+      weekday: "long",
       year: "numeric",
-      month: "short",
+      month: "long",
       day: "numeric",
     }
   );
 }
-
